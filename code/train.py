@@ -10,7 +10,7 @@ import pyro
 
 def parse_args():
     parser = argparse.ArgumentParser(description="BA-SGCL")
-    parser.add_argument('--epochs', type=int, default=500, help='training epochs') ##change under different attack rate
+    parser.add_argument('--epochs', type=int, default=500, help='training epochs') ##need to change under different attack rate
     parser.add_argument('--num_filter', type=int, default=64, help='num of filters')
     parser.add_argument('--q', type=float, default=0.1, help='q value for the phase matrix')
     parser.add_argument('--K', type=int, default=1, help='K for cheb series')
@@ -22,9 +22,9 @@ def parse_args():
     parser.add_argument('--ensemble', type=int, default=5, help='number of ensemble model')
     parser.add_argument('--device', type=int, default=0, help='Select GPU idx')
     parser.add_argument('--ratio', type=int, default=3, help='pos_neg ratio')
-    parser.add_argument('--loss_weight', type=float, default=0.2, help='contrastive_loss_weight')
+    parser.add_argument('--loss_weight', type=float, default=0.1, help='contrastive_loss_weight')
     parser.add_argument('--batch_size', type=int, default=1024, help='contrastive_loss_batch')
-    parser.add_argument('--tau', type=float, default=0.4, help='change ratio of balance augmentation')
+    parser.add_argument('--tau', type=float, default=0.3, help='tau')
     parser.add_argument('--aug_lr', type=float, default=100, help='augmentation learning rate')
     return parser.parse_args()
 
@@ -133,6 +133,9 @@ def main(args):
     datasets = generate_dataset_2class(pos_edge, neg_edge, splits = args.ensemble, test_prob = 0.20, ratio=args.ratio, device=args.cuda)
     results = np.zeros((args.ensemble, 2, 6))
 
+    stop = 1000
+    print('Stop Iteration: ', stop)
+
     for i in range(args.ensemble):
         edges = datasets[i]['graph']
         pos_edges = datasets[i]['train']['pos_edge']
@@ -162,7 +165,13 @@ def main(args):
         #################################
         best_test_err = 1000.0
         early_stopping = 0
+
         for epoch in range(args.epochs):
+            if early_stopping > stop:
+                break
+            ####################
+            # Train
+            ####################
             model.train()
             opt.zero_grad()
 
@@ -184,9 +193,10 @@ def main(args):
             label_loss = model.label_loss(z1, z2, y_train)
             train_loss = args.loss_weight * contrastive_loss + label_loss
             print("contrastive_loss=", contrastive_loss.item())
-            print("balance_loss=", -bd.item())
+            print("bd=", bd.item())
             print("label_loss=", label_loss.item())
             print("train_loss=", train_loss.item())
+            # change_links_prob_grad = torch.autograd.grad(train_loss, Baug.change_links_prob, retain_graph=True)[0]
             change_links_prob_grad = torch.autograd.grad(-bd, Baug.change_links_prob, retain_graph=True)[0]
             Baug.change_links_prob.data -= args.aug_lr * change_links_prob_grad
             n_perturbations = int(args.tau * (ori_adj.sum()))
