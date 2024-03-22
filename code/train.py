@@ -10,7 +10,7 @@ import pyro
 
 def parse_args():
     parser = argparse.ArgumentParser(description="BA-SGCL")
-    parser.add_argument('--epochs', type=int, default=500, help='training epochs') ##need to change under different attack rate
+    parser.add_argument('--epochs', type=int, default=1000, help='training epochs') ##need to change under different attack rate
     parser.add_argument('--num_filter', type=int, default=64, help='num of filters')
     parser.add_argument('--q', type=float, default=0.1, help='q value for the phase matrix')
     parser.add_argument('--K', type=int, default=1, help='K for cheb series')
